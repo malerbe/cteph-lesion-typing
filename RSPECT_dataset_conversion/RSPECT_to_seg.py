@@ -26,15 +26,17 @@ import utils
 # Configuration
 ##################
 PATH_TO_DATASET_IMGS = "/data/lmalerba/RSPECT_dataset/images" # path to dicom folders from the RSNA dataset (at least RSPECT reannotated subset)
+PATH_TO_TRAIN_CSV = "/data/lmalerba/RSPECT_dataset/train.csv" # path to augmented RSPECT train.csv, contains exam-level labels
 PATH_TO_DATASET_AUGMENTED_LABELS = "/data/lmalerba/augmented_RSPECT/augmented_rspect.csv" 
 OUTPUT_DIR = "/data/lmalerba/augmented_RSPECT"
+
+train_dataset_labels = pd.read_csv(PATH_TO_TRAIN_CSV)
 
 # Make folders if necessary:
 if not os.path.exists(os.path.join(OUTPUT_DIR, "images")):
     os.makedirs(os.path.join(OUTPUT_DIR, "images"))
 if not os.path.exists(os.path.join(OUTPUT_DIR, "masks")):
     os.makedirs(os.path.join(OUTPUT_DIR, "masks"))
-
 
 ##################
 # Conversion script
@@ -91,9 +93,12 @@ for i in tqdm(range(len(_list))):
         slice_pos_z = (max_z - image_position[2])/res[0]
         z_slice = int(slice_pos_z)
 
+        # Get label:
+        is_chronic = int(train_dataset_labels[train_dataset_labels["SOPInstanceUID"] == dcm_file]["chronic_pe"].iloc[0])
+
         # Make the segmentation array for this slice:
         mask_slice = np.zeros((img_array.shape[1], img_array.shape[2]))
-        mask_slice[int(y):int(y)+int(height)+1, int(x):int(x)+int(width)+1] = 1
+        mask_slice[int(y):int(y)+int(height)+1, int(x):int(x)+int(width)+1] = is_chronic + 1
         seg_array[int(z_slice)] = mask_slice
 
     # 8. Save segmentation as nifti:

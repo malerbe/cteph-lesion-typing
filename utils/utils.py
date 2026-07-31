@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import pydicom
+import SimpleITK as sitk
 
 
 def load_dicom_series(series_dir):
@@ -57,3 +58,20 @@ def load_dicom_series(series_dir):
     }
 
     return img_array, res, vol_infos
+
+def resample_to_spacing(image_sitk, target_spacing, interpolator, default_pixel_value):
+    original_spacing = image_sitk.GetSpacing()
+    original_size = image_sitk.GetSize()
+    new_size = [
+        int(round(size * spacing / target))
+        for size, spacing, target in zip(original_size, original_spacing, target_spacing)
+    ]
+
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetOutputSpacing(target_spacing)
+    resampler.SetSize(new_size)
+    resampler.SetOutputOrigin(image_sitk.GetOrigin())
+    resampler.SetOutputDirection(image_sitk.GetDirection())
+    resampler.SetInterpolator(interpolator)
+    resampler.SetDefaultPixelValue(default_pixel_value)
+    return resampler.Execute(image_sitk)
