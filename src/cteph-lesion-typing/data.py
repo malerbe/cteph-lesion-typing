@@ -163,7 +163,7 @@ def _get_dataloaders_classification(data_config, use_cuda):
     ######################################
     dataset_dir = Path(data_config["dataset_dir"])
     valid_ratio = data_config.get("valid_ratio", 0.2)
-    batch_size = data_config.get("batch_size", 1)
+    batch_size = data_config["batch_size"]
     num_workers = data_config.get("num_workers", 2)
     splits_file = data_config["splits_file"]
     val_fold = data_config["val_fold"]

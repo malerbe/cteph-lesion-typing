@@ -51,6 +51,18 @@ def get_optimizer(cfg, params):
 ######################################################################
 # Schedulers
 ######################################################################
+def get_phase_nepochs(scheduler_cfg):
+    if scheduler_cfg is None:
+        raise ValueError("scheduler config must be given")
+
+    algo = scheduler_cfg["algo"]
+    params = scheduler_cfg.get("params", {})
+
+    if "T_max" in params:
+        return params["T_max"]
+
+    raise ValueError("need a T_max. Need to implement get_phase_nepochs other schedulers than LinearWarmupCosineWarmRestarts if needed")
+
 class LinearWarmupCosineWarmRestarts(torch.optim.lr_scheduler._LRScheduler):
     """Linear warmup followed by cosine annealing with periodic warm restarts.
 

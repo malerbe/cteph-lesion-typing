@@ -92,11 +92,11 @@ def _train_patch_classification(config):
     ######################################
     phases = []
     if "phase1" in config:
-        phases.append(("Phase 1 (frozen)", config["phase1"], True))
+        phases.append(("Phase 1", config["phase1"], True))
     else:
         raise ValueError("At least on phase must be configured in the training file. phase1 was not found")
     if "phase2" in config:
-        phases.append(("Phase 2 (unfrozen)", config["phase2"], False))
+        phases.append(("Phase 2", config["phase2"], False))
     # could be more than 2 phases, but only support 2 for now 
 
     ######################################
@@ -107,8 +107,6 @@ def _train_patch_classification(config):
 
     global_epoch = 0
     for phase_name, phase_cfg, freeze_backbone in phases:
-        nepochs = phase_cfg["nepochs"]
-        
         # freeze or unfreeze backbone
         if hasattr(model, "freeze_backbone"):
             if freeze_backbone:
@@ -136,8 +134,8 @@ def _train_patch_classification(config):
 
         scheduler_cfg = phase_cfg.get("scheduler", None)
         scheduler = optim.get_scheduler(scheduler_cfg, optimizer)
-        if scheduler is not None:
-            logging.info(f"Scheduler: {scheduler_cfg['algo']} {scheduler_cfg.get('params', {})}")
+        nepochs = optim.get_phase_nepochs(scheduler_cfg)
+        logging.info(f"Scheduler: {scheduler_cfg['algo']} {scheduler_cfg.get('params', {})}")
 
         grad_accum_steps = phase_cfg.get("grad_accum_steps", 1)
         grad_clip_norm = phase_cfg.get("grad_clip_norm", None)
