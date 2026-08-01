@@ -10,6 +10,7 @@ data:
 
 model:
   class: Deep3DCNN
+  model_path: '/data/lmalerba/logs/Deep3DCNN_2/best_model.pt' 
 
 loss:
   name: CrossEntropyLoss

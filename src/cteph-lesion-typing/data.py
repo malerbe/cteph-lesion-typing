@@ -71,7 +71,7 @@ class PatchClassificationDataset(Dataset):
 
         if self.per_image_normalize:
             eps = 1e-8
-            image_tensor = (image_tensor - image_tensor.mean() / image_tensor.std().clamp(min=eps))
+            image_tensor = ((image_tensor - image_tensor.mean()) / image_tensor.std().clamp(min=eps))
 
         label_tensor = torch.tensor(self.labels[idx], dtype=torch.long)
 
