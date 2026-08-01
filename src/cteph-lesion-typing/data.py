@@ -28,7 +28,7 @@ CLASS_TO_IDX = {"acute": 0, "chronic": 1}
 ######################################
 # Datasets
 ######################################
-class PatchClassificatioNDataset(Dataset):
+class PatchClassificationDataset(Dataset):
     """
     Dataset for classifying 3D nifti crops
 
@@ -38,7 +38,7 @@ class PatchClassificatioNDataset(Dataset):
         self.file_paths = []
         self.labels = []
         self.study_uids = [] # patient-level identificatin for train.val spliiting without data-leakage
-        self.transform = None
+        self.transform = transform
 
         for fname in sorted(os.listdir(patch_dir)):
             parts = fname.replace(".nii.gz", "").split("_")
