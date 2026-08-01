@@ -9,6 +9,7 @@ import os
 import sys
 import numpy as np
 import SimpleITK as sitk
+import json
 
 # Local imports
 sys.path.append(f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/utils")
@@ -20,7 +21,14 @@ import utils
 PATH_TO_INPUT_DATASET = "/data/lmalerba/augmented_RSPECT"
 OUTPUT_PATH = "/data/lmalerba/lesions_patches_dataset"
 
-PATCH_SIZE_MM = 60.0 # patch size in mm
+NORMALIZE = True # If set as True, CT normalization will be done and generated dataset will be normalized
+PATH_TO_FINGERPRINT = "/data/lmalerba/augmented_RSPECT/dataset_fingerprint.json"
+
+if NORMALIZE == True and PATH_TO_FINGERPRINT == None:
+    raise ValueError("For normalization, dataset fingerprint is needed")
+
+
+PATCH_SIZE_MM = 50.0 # patch size in mm
 TARGET_SPACING = (0.8, 0.8, 0.8)
 CLASS_LABELS = {1: "acute", 2: "chronic"}
 
@@ -29,6 +37,7 @@ def compute_axis_bounds(center, spacing_axis, patch_size_mm, dim_size):
     shifting it (instead of clipping) to stay inside the volume when possible."""
     size_vox = max(1, round(patch_size_mm / spacing_axis))
     size_vox = min(size_vox, dim_size)
+
     start = center - size_vox // 2
     start = max(0, min(start, dim_size - size_vox))
     return start, size_vox
@@ -71,6 +80,12 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
     spacing = image_sitk.GetSpacing()  # (x, y, z) mm per voxel
     volume_size = image_sitk.GetSize()  # (x, y, z)
 
+    # read dataset fingerprint if normalization is needed
+    fingerprint = None
+    if NORMALIZE:
+        with open(PATH_TO_FINGERPRINT, 'r', encoding='utf-8') as f:
+            fingerprint = json.load(f)
+
     saved_count = 0
     for lesion_id in lesion_ids:
         centroid_physical = shape_stats.GetCentroid(lesion_id)
@@ -82,6 +97,20 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
             start[axis], size[axis] = compute_axis_bounds(
                 center_index[axis], spacing[axis], PATCH_SIZE_MM, volume_size[axis]
             )
+
+        if NORMALIZE:
+            image_array = sitk.GetArrayFromImage(image_sitk)
+            label_array = sitk.GetArrayFromImage(label_sitk)
+
+            image_array = utils.ct_normalize(image_array,
+                 fingerprint["mean"],
+                 fingerprint["std"],
+                 fingerprint["percentile_00_5"], 
+                 fingerprint["percentile_99_5"])
+
+            image_sitk_normalized = sitk.GetImageFromArray(image_array)
+            image_sitk_normalized.CopyInformation(image_sitk)
+            image_sitk = image_sitk_normalized
 
         image_patch = sitk.RegionOfInterest(image_sitk, size=size, index=start)
         label_patch = sitk.RegionOfInterest(label_sitk, size=size, index=start)
@@ -98,8 +127,12 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
 if __name__ == "__main__":
     images_out_dir = os.path.join(OUTPUT_PATH, "images")
     masks_out_dir = os.path.join(OUTPUT_PATH, "masks")
+
     os.makedirs(images_out_dir, exist_ok=True)
     os.makedirs(masks_out_dir, exist_ok=True)
+
+    assert not os.listdir(os.path.join(images_out_dir)), "Output folders are not empty. Please empty them before running this script."
+    assert not os.listdir(os.path.join(masks_out_dir)), "Output folders are not empty. Please empty them before running this script."
 
     total_patches = 0
     total_images = 0
@@ -114,7 +147,7 @@ if __name__ == "__main__":
         path_to_label = os.path.join(labels_dir, fname)
         path_to_image = os.path.join(images_dir, fname)
 
-        print(path_to_image)
+        # print(path_to_image)
         if not os.path.isfile(path_to_image):
             print(f"Skipping {fname}: matching image not found")
             continue

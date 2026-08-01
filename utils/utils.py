@@ -75,3 +75,21 @@ def resample_to_spacing(image_sitk, target_spacing, interpolator, default_pixel_
     resampler.SetInterpolator(interpolator)
     resampler.SetDefaultPixelValue(default_pixel_value)
     return resampler.Execute(image_sitk)
+
+def ct_normalize(image,
+                 mean,
+                 std,
+                 lower_bound, 
+                 upper_bound,
+                 dtype=np.float32):
+    """
+    lower_bound = percentile 0.5
+    upper_bound = percentile 99.5
+    """
+    eps = 1e-8 if dtype != np.float16 else 1e-4
+    image = image.astype(dtype, copy=False)
+    np.clip(image, lower_bound, upper_bound, out=image)
+    image -= mean
+    image /= max(std, eps)
+    return image
+    

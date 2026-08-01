@@ -3,17 +3,51 @@ import logging
 import sys
 import yaml
 
-
+# External imports
 import torch
 
 # Local imports
-from . import models
 from . import data
+from . import models
+from . import optim
+from . import utils
 
+logging.basicConfig(level=logging.INFO)
+
+######################################################################
+# train and helper functions
+######################################################################
 def train(config):
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    """
+    Main entry point to train based on the provided config.
+    """
+    if config["data"]["task"] in ["classification", "multihead_classification"]:
+        _train_patch_classification(config)
 
 
+def _train_patch_classification(config):
+    """
+    Train a classification model based on patches
+    """
+
+    logging.info("Training patch classification model...")
+
+    ######################################
+    # Config
+    ######################################
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda") if use_cuda else torch.device("cpu")
+    data_config = config["data"]
+    model_config = config["model"]
+    loss_config = config["loss"]
+    logging_config = config["logging"]
+    
+    ######################################
+    # Dataloaders
+    ######################################
+    logging.info("= Building dataloaders...")
+
+    train_loader, valid_loader, input_size, num_classes = data.get_dataloaders(data_config, use_cuda)
 
 
 
