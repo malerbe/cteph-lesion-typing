@@ -190,5 +190,20 @@ def _get_dataloaders_classification(data_config, use_cuda):
     # Datasets
     ######################################
     train_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=train_filenames, transform=train_transform)
-    valid_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=train_filenames) # no augmentation
-    
+    valid_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=valid_filenames) # no augmentation
+
+    ######################################
+    # Sampler
+    ######################################
+    # Weighted sampler: equal probability per class during training
+    train_labels = [f[1] for f in train_dataset.get_labels()]
+    class_counts = np.bincount(train_labels, minlength=len(CLASS_TO_IDX)).astype(float)
+    class_counts[class_counts == 0] = 1.0  # avoid division by zero
+    class_weights = 1.0 / class_counts
+    sample_weights = [class_weights[lbl] for lbl in train_labels]
+    sampler = torch.utils.data.WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(train_dataset),
+        replacement=True,
+    )
+    logging.info(f"  - WeightedRandomSampler: class_weights = {dict(enumerate(class_weights))}")

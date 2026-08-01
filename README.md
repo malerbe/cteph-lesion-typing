@@ -19,6 +19,7 @@ How to use:
 - Extract dataset fingerprint (if normalization is wanted) (extract_fingerprint.py)
 - Convert segmentation to patches (check if normalization is set as True if normalization is wanted !) (lesion_patches_extraction.py)
 - Create splitting folds (split_patch_dataset.py)
+- Write a configuration file (config.yaml)
 - Train 
 
 
