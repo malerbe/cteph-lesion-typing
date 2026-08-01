@@ -252,6 +252,84 @@ def _train_patch_classification(config):
 
     logging.info(f"\nTraining complete. Best model saved to {model_checkpoint.savepath}")
 
+def evaluate(config):
+    """
+    Main entry point to evaluate a trained model based on the provided config.
+    """
+    if config["data"]["task"] in ["classification", "multihead_classification"]:
+        _evaluate_patch_classification(config)
+
+
+def _evaluate_patch_classification(config):
+    """
+    Evaluate an already-trained patch classification model, loaded from
+    config["model"]["model_path"], on the validation fold described by
+    config["data"] (same dataloader-building path as training).
+    """
+
+    logging.info("Evaluating patch classification model...")
+
+    ######################################
+    # Config
+    ######################################
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda") if use_cuda else torch.device("cpu")
+    data_config = config["data"]
+    model_config = config["model"]
+    loss_config = config["loss"]
+
+    if "model_path" not in model_config:
+        raise ValueError(
+            "config['model']['model_path'] must be set to the .pt checkpoint to evaluate"
+        )
+    model_path = model_config["model_path"]
+
+    ######################################
+    # Dataloaders
+    ######################################
+    logging.info("= Building dataloaders...")
+
+    _, valid_loader, input_size, num_classes = data.get_dataloaders(data_config, use_cuda)
+
+    ######################################
+    # Model
+    ######################################
+    logging.info(f"= Building model and loading weights from {model_path}...")
+
+    model = models.build_model(model_config, input_size, num_classes)
+    state_dict = torch.load(model_path, map_location=device)
+    model.load_state_dict(state_dict)
+    model.to(device)
+
+    ######################################
+    # Loss
+    ######################################
+    loss = optim.get_loss(loss_config)
+
+    ######################################
+    # Evaluation
+    ######################################
+    logging.info("= Running evaluation on the validation set...")
+
+    test_results = utils.test(model, valid_loader, loss, device, class_names=CLASS_NAMES)
+
+    ######################################
+    # Report
+    ######################################
+    test_f1_parts = " | ".join(f"{k}: {v:.3f}" for k, v in test_results["f1_per_class"].items())
+    logging.info(f"\n{'='*60}")
+    logging.info("Evaluation results")
+    logging.info(f"{'='*60}")
+    logging.info(
+        "  Loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | F1: %.3f | Prec: %.3f | Rec: %.3f"
+        % (test_results["loss"], 100.0 * test_results["accuracy"], 100.0 * test_results["balanced_accuracy"],
+           test_results["f1_macro"], test_results["precision_macro"], test_results["recall_macro"])
+    )
+    logging.info(f"  F1/class: {test_f1_parts}")
+    logging.info("\nClassification report:\n" + test_results["classification_report"])
+    logging.info("Confusion matrix:\n" + str(test_results["confusion_matrix"]))
+
+    return test_results
 
     
 if __name__ == "__main__":
