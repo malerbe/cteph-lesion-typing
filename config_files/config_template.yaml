@@ -9,7 +9,9 @@ data:
   per_image_normalize: false # To be deactivated if global normalization was performed by lesion_patches_extraction.py
 
 model:
-  class: Deep3DCNN
+  class: MonaiResNet3D
+  depth: 50       # 10, 18, 34 ou 50 (défaut: 18)
+  pretrained: false
   model_path: '/data/lmalerba/logs/Deep3DCNN_2/best_model.pt' 
 
 loss:
@@ -22,7 +24,7 @@ phase1:
   optim:
     algo: Adam
     params:
-      lr: 0.001
+      lr: 0.01
   scheduler:
     algo: CosineAnnealingLR
     params:

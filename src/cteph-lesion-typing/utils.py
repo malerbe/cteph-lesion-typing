@@ -79,7 +79,6 @@ def train(model, loader, f_loss, optimizer, device, class_names=None,
         else:
             cls_logits = outputs
             probs = torch.softmax(cls_logits, dim=1)[:, 1]  # P(positive class), assumes binary
-            all_probs.append(probs.detach().cpu())
             loss = f_loss(cls_logits, targets)
             total_cls_loss += inputs.shape[0] * loss.item()
 
