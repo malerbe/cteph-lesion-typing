@@ -245,18 +245,172 @@ def _get_dataloaders_classification(data_config, use_cuda):
     return train_loader, valid_loader, input_size, len(CLASS_TO_IDX)
 
 if __name__ == "__main__":
-    # Small script to check if dataloaders work with a given config file
+    """
+    AI-GENERATED Sanity-check script:
+    
+    Sanity-check script: loads a real config.yaml (same format as used for
+    training), builds the actual train/valid dataloaders exactly like
+    main.py would, and dumps diagnostics + figures so you can eyeball
+    whether everything is coherent before launching a real training run.
+
+    Usage: python data.py config.yaml output_dir
+    """
     import sys
     import yaml
+    import numpy as np
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 
-    # Read arguments
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     if len(sys.argv) != 3:
-        logging.error(f"Usage : {sys.argv[0]} config.yaml")
+        logging.error(f"Usage : {sys.argv[0]} config.yaml output_dir")
         sys.exit(-1)
 
     logging.info("Loading {} configuration file".format(sys.argv[1]))
     config = yaml.safe_load(open(sys.argv[1], "r"))
+    output_dir = Path(sys.argv[2])
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    
+    data_config = config["data"]
+    idx_to_class = {v: k for k, v in CLASS_TO_IDX.items()}
+
+    ######################################
+    # Build the real dataloaders, exactly like training would
+    ######################################
+    logging.info("Building dataloaders from config...")
+    train_loader, valid_loader, input_size, num_classes = get_dataloaders(data_config, use_cuda=False)
+    train_dataset = train_loader.dataset
+    valid_dataset = valid_loader.dataset
+
+    logging.info(f"input_size={input_size}, num_classes={num_classes}")
+    logging.info(f"train: {len(train_dataset)} patches / valid: {len(valid_dataset)} patches")
+
+    ######################################
+    # 1) Patient-level leakage check
+    ######################################
+    train_suids = set(train_dataset.study_uids)
+    valid_suids = set(valid_dataset.study_uids)
+    leak = train_suids & valid_suids
+    if leak:
+        logging.error(f"/!\\ {len(leak)} patient(s) appear in BOTH train and valid: {sorted(leak)[:10]}")
+    else:
+        logging.info("OK - no patient overlap between train and valid")
+
+    ######################################
+    # 2) Label distribution per split
+    ######################################
+    for name, ds in [("train", train_dataset), ("valid", valid_dataset)]:
+        counts = np.bincount(ds.labels, minlength=num_classes)
+        dist = {idx_to_class[i]: int(c) for i, c in enumerate(counts)}
+        logging.info(f"{name} label distribution: {dist}")
+
+    ######################################
+    # 3) Sampler behaviour (train dataloader only)
+    ######################################
+    sampled_labels = []
+    for _, batch_labels in train_loader:
+        sampled_labels.extend(batch_labels.tolist())
+        if len(sampled_labels) >= 500:
+            break
+    sampled_counts = np.bincount(sampled_labels, minlength=num_classes)
+    sampled_dist = {idx_to_class[i]: int(c) for i, c in enumerate(sampled_counts)}
+    logging.info(f"sampler draws over first {len(sampled_labels)} train samples: {sampled_dist}")
+
+    ######################################
+    # 4) Patch shape consistency (catches DataLoader collate crashes early)
+    ######################################
+    shapes = set()
+    n_shape_check = min(50, len(train_dataset))
+    for i in range(n_shape_check):
+        img, _ = valid_dataset[i] if i < len(valid_dataset) else train_dataset[i]
+        shapes.add(tuple(img.shape))
+    if len(shapes) > 1:
+        logging.warning(f"/!\\ inconsistent patch shapes found: {shapes} "
+                         f"-> batches with mixed shapes will crash at collate time")
+    else:
+        logging.info(f"OK - consistent patch shape over {n_shape_check} samples: {shapes}")
+
+    ######################################
+    # 5) Intensity stats (sanity check for normalization)
+    ######################################
+    n_intensity_check = min(20, len(valid_dataset))
+    all_vals = np.concatenate([valid_dataset[i][0].numpy().ravel() for i in range(n_intensity_check)])
+    logging.info(
+        f"intensity stats over {n_intensity_check} raw valid samples: "
+        f"min={all_vals.min():.2f}, max={all_vals.max():.2f}, "
+        f"mean={all_vals.mean():.2f}, std={all_vals.std():.2f}"
+    )
+    if abs(all_vals.mean()) > 5 or not (0.1 < all_vals.std() < 10):
+        logging.warning("/!\\ intensity stats look off for a normalized CT patch "
+                         "(expected roughly mean~0, std~1) - double check normalization")
+
+    ######################################
+    # 6) Visual check: orthogonal slices + MIPs, raw vs. augmented
+    ######################################
+    def slices_and_mips(volume):
+        """volume: (D, H, W) numpy array -> dict of 6 2D views."""
+        d, h, w = volume.shape
+        return {
+            "axial slice": volume[d // 2, :, :],
+            "coronal slice": volume[:, h // 2, :],
+            "sagittal slice": volume[:, :, w // 2],
+            "axial MIP": volume.max(axis=0),
+            "coronal MIP": volume.max(axis=1),
+            "sagittal MIP": volume.max(axis=2),
+        }
+
+    def plot_raw_vs_augmented(raw_vol, aug_vol, title, save_path):
+        views_order = ["axial slice", "coronal slice", "sagittal slice", "axial MIP", "coronal MIP", "sagittal MIP"]
+        raw_views = slices_and_mips(raw_vol)
+        aug_views = slices_and_mips(aug_vol)
+
+        fig, axes = plt.subplots(2, len(views_order), figsize=(3 * len(views_order), 6))
+        vmin, vmax = raw_vol.min(), raw_vol.max()
+        for col, key in enumerate(views_order):
+            axes[0, col].imshow(raw_views[key], cmap="gray", vmin=vmin, vmax=vmax)
+            axes[0, col].set_title(f"raw - {key}", fontsize=9)
+            axes[0, col].axis("off")
+
+            axes[1, col].imshow(aug_views[key], cmap="gray", vmin=vmin, vmax=vmax)
+            axes[1, col].set_title(f"augmented - {key}", fontsize=9)
+            axes[1, col].axis("off")
+
+        fig.suptitle(title)
+        fig.tight_layout()
+        fig.savefig(save_path, dpi=120)
+        plt.close(fig)
+
+    def load_raw_tensor(file_path):
+        """Bypasses any transform, reproducing exactly what __getitem__ does before the transform step."""
+        arr = sitk.GetArrayFromImage(sitk.ReadImage(str(file_path))).astype(np.float32)
+        return torch.from_numpy(arr).unsqueeze(0)
+
+    n_examples_per_class = 3
+    picked = {c: 0 for c in CLASS_TO_IDX}
+    for i in range(len(train_dataset)):
+        class_name = idx_to_class[train_dataset.labels[i]]
+        if picked[class_name] >= n_examples_per_class:
+            continue
+
+        raw_tensor = load_raw_tensor(train_dataset.file_paths[i])
+        aug_tensor = train_dataset.transform(raw_tensor.clone()) if train_dataset.transform is not None else raw_tensor
+
+        raw_vol = raw_tensor[0].numpy()
+        aug_vol = aug_tensor[0].numpy()
+
+        fname = Path(train_dataset.file_paths[i]).name
+        save_path = output_dir / f"{class_name}_{picked[class_name]}_{fname.replace('.nii.gz', '')}.png"
+        plot_raw_vs_augmented(raw_vol, aug_vol, f"{class_name} - {fname}", save_path)
+        logging.info(f"saved {save_path}")
+        picked[class_name] += 1
+
+        if all(v >= n_examples_per_class for v in picked.values()):
+            break
+
+    for class_name, n_found in picked.items():
+        if n_found < n_examples_per_class:
+            logging.warning(f"/!\\ only found {n_found}/{n_examples_per_class} '{class_name}' examples in train set")
+
+    logging.info(f"Done. Figures and logs above are in {output_dir}")
