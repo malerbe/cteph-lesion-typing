@@ -162,22 +162,8 @@ def _get_dataloaders_classification(data_config, use_cuda):
     num_workers = data_config.get("num_workers", 2)
 
     ######################################
-    # Load labels
+    # Load splits
     ######################################
-    logging.info("  - Loading labels")
-    fnames = os.listdir(os.path.join(dataset_dir, "images"))
-    labels = []
-    for fname in fnames:
-        parts = fname.replace(".nii.gz", "").split("_")
-        class_name = parts[-2]
-        if class_name not in CLASS_TO_IDX:
-            raise ValueError(f"Unknown class {class_name}")
+   
 
-        labels.append(class_name)
-
-    logging.info(f"  - Found {len(labels)} samples and labels")
-
-    ######################################
-    # Split (patient-level stratified)
-    ######################################
     

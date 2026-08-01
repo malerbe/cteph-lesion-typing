@@ -18,6 +18,7 @@ How to use:
 - Convert dataset to segmentation (RSPECT_to_seg.py)
 - Extract dataset fingerprint (if normalization is wanted) (extract_fingerprint.py)
 - Convert segmentation to patches (check if normalization is set as True if normalization is wanted !) (lesion_patches_extraction.py)
+- Create splitting folds (split_patch_dataset.py)
 - Train 
 
 
