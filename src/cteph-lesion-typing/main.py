@@ -12,7 +12,7 @@ from . import models
 from . import optim
 from . import utils
 
-logging.basicConfig(level=logging.INFO)
+
 
 ######################################################################
 # train and helper functions
@@ -49,6 +49,10 @@ def _train_patch_classification(config):
 
     train_loader, valid_loader, input_size, num_classes = data.get_dataloaders(data_config, use_cuda)
 
+    ######################################
+    # Model
+    ######################################
+    logging.info("= Building model...")
 
 
 

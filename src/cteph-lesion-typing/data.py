@@ -1,4 +1,8 @@
-"""Dataset and dataloaders for 3D NIfTI crop classification."""
+"""
+Dataset and dataloaders for 3D NIfTI crop classification.
+
+Author: Louca Malerba
+"""
 
 # Standard imports
 import logging
@@ -49,7 +53,7 @@ class PatchClassificationDataset(Dataset):
             if class_name not in CLASS_TO_IDX:
                 raise ValueError(f"Unknown class {class_name}")
             
-            self.file_paths.append(os.path.join(patch_dir, fname))
+            self.file_paths.append(os.path.join(patch_dir, "images", fname))
             self.labels.append(CLASS_TO_IDX[class_name])
             self.study_uids.append(parts[0])
 
@@ -163,6 +167,7 @@ def _get_dataloaders_classification(data_config, use_cuda):
     num_workers = data_config.get("num_workers", 2)
     splits_file = data_config["splits_file"]
     val_fold = data_config["val_fold"]
+    val_fold -= 1 # We want to have a natural numbering in the config file
 
     ######################################
     # Load splits
@@ -236,3 +241,20 @@ def _get_dataloaders_classification(data_config, use_cuda):
     input_size = tuple(first_tensor.shape)  # (1, D, H, W)
 
     return train_loader, valid_loader, input_size, len(CLASS_TO_IDX)
+
+if __name__ == "__main__":
+    # Small script to check if dataloaders work with a given config file
+    import sys
+    import yaml
+
+    # Read arguments
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
+
+    if len(sys.argv) != 3:
+        logging.error(f"Usage : {sys.argv[0]} config.yaml")
+        sys.exit(-1)
+
+    logging.info("Loading {} configuration file".format(sys.argv[1]))
+    config = yaml.safe_load(open(sys.argv[1], "r"))
+
+    

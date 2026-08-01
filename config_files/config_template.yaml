@@ -1,0 +1,15 @@
+data:
+  dataset_dir: '/data/lmalerba/lesions_patches_dataset'
+  task: classification
+  splits_file: '/data/lmalerba/lesions_patches_dataset/cv_splits.json'
+  val_fold: 5
+  transforms_name: standard
+
+model:
+  class: BasicCNN
+
+loss:
+  name: CrossEntropyLoss
+
+logging:
+  logdir: "/data/lmalerba/logs"
