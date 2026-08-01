@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import os 
 import numpy as np
+import json
 
 # Imports
 import torch
@@ -160,10 +161,34 @@ def _get_dataloaders_classification(data_config, use_cuda):
     valid_ratio = data_config.get("valid_ratio", 0.2)
     batch_size = data_config.get("batch_size", 1)
     num_workers = data_config.get("num_workers", 2)
+    splits_file = data_config["splits_file"]
+    val_fold = data_config["val_fold"]
 
     ######################################
     # Load splits
     ######################################
-   
+    with open(splits_file, 'r', encoding='utf-8') as f:
+        splits_json = json.load(f)
 
+    folds = splits_json["folds"]
+    n_splits = len(folds)
+
+    valid_filenames = folds[val_fold]
+    train_filenames = []
+    for fold in range(n_splits):
+        if fold != val_fold:
+            train_filenames.extend(folds[fold])
+    
+    ######################################
+    # Transforms
+    ######################################
+    transforms_name = data_config["transforms_name"] 
+    train_transform = get_transforms(transforms_name, train=True)
+    logging.info(f"  - Training augmentations ({transforms_name}): {train_transform}")
+
+    ######################################
+    # Datasets
+    ######################################
+    train_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=train_filenames, transform=train_transform)
+    valid_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=train_filenames) # no augmentation
     
