@@ -196,7 +196,7 @@ def _get_dataloaders_classification(data_config, use_cuda):
     # Sampler
     ######################################
     # Weighted sampler: equal probability per class during training
-    train_labels = [f[1] for f in train_dataset.get_labels()]
+    _, train_labels = train_dataset.get_labels()
     class_counts = np.bincount(train_labels, minlength=len(CLASS_TO_IDX)).astype(float)
     class_counts[class_counts == 0] = 1.0  # avoid division by zero
     class_weights = 1.0 / class_counts
@@ -207,3 +207,32 @@ def _get_dataloaders_classification(data_config, use_cuda):
         replacement=True,
     )
     logging.info(f"  - WeightedRandomSampler: class_weights = {dict(enumerate(class_weights))}")
+
+    ######################################
+    # Dataloaders
+    ######################################
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        sampler=sampler,  # replaces shuffle=True-
+        num_workers=num_workers,
+        pin_memory=use_cuda,
+    )
+
+    valid_loader = torch.utils.data.DataLoader(
+        valid_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=use_cuda,
+    )
+
+    ######################################
+    # Return dataloaders, input size, and num_classes
+    ######################################
+    # Get input_size from first sample
+    first_sample = train_dataset[0]
+    first_tensor = first_sample[0]
+    input_size = tuple(first_tensor.shape)  # (1, D, H, W)
+
+    return train_loader, valid_loader, input_size, len(CLASS_TO_IDX)
