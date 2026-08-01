@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 import SimpleITK as sitk
+from sklearn.model_selection import StratifiedShuffleSplit
 from monai.transforms import (
     Compose,
     RandFlip,
@@ -34,13 +35,14 @@ class PatchClassificationDataset(Dataset):
 
     /!\ DATA IS ASSUMED TO BE PRE-NORMALIZED IF NORMALIZATION IS NEEDED /!\
     """
-    def __init__(self, patch_dir, transform = None):
+    def __init__(self, patch_dir, filenames, transform = None):
+        self.filenames = filenames
         self.file_paths = []
         self.labels = []
         self.study_uids = [] # patient-level identificatin for train.val spliiting without data-leakage
         self.transform = transform
 
-        for fname in sorted(os.listdir(patch_dir)):
+        for fname in sorted(self.filenames):
             parts = fname.replace(".nii.gz", "").split("_")
             class_name = parts[-2]
             if class_name not in CLASS_TO_IDX:
@@ -52,6 +54,9 @@ class PatchClassificationDataset(Dataset):
 
     def __len__(self):
         return len(self.file_paths)
+
+    def get_labels(self):
+        return self.file_paths, self.labels
 
     def __getitem__(self, idx):
         image = sitk.GetArrayFromImage(sitk.ReadImage(self.file_paths[idx])).astype(np.float32)
@@ -129,3 +134,50 @@ def get_transforms(transforms_name: str, train: bool = True):
         return presets[transforms_name]
     else:
         return Compose([])
+
+######################################################################
+# get_dataloaders and helpers
+######################################################################
+def get_dataloaders(data_config: dict, use_cuda: bool):
+    """Main entry point to get dataloaders based on the provided config."""
+    task = data_config["task"]
+    if task == "classification":
+        return _get_dataloaders_classification(data_config, use_cuda)
+    else:
+        raise ValueError(f"Unknown task '{task}' in data_config")
+
+def _get_dataloaders_classification(data_config, use_cuda):
+    """
+    Build train and validation dataloaders from a patch classification dataset.
+
+    The split is done at the **patient level** to avoid data leakage:
+    all crops from a given patient are in the same split.
+    """
+    ######################################
+    # Config
+    ######################################
+    dataset_dir = Path(data_config["dataset_dir"])
+    valid_ratio = data_config.get("valid_ratio", 0.2)
+    batch_size = data_config.get("batch_size", 1)
+    num_workers = data_config.get("num_workers", 2)
+
+    ######################################
+    # Load labels
+    ######################################
+    logging.info("  - Loading labels")
+    fnames = os.listdir(os.path.join(dataset_dir, "images"))
+    labels = []
+    for fname in fnames:
+        parts = fname.replace(".nii.gz", "").split("_")
+        class_name = parts[-2]
+        if class_name not in CLASS_TO_IDX:
+            raise ValueError(f"Unknown class {class_name}")
+
+        labels.append(class_name)
+
+    logging.info(f"  - Found {len(labels)} samples and labels")
+
+    ######################################
+    # Split (patient-level stratified)
+    ######################################
+    

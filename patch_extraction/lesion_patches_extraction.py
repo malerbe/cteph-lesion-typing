@@ -85,7 +85,7 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
     if NORMALIZE:
         with open(PATH_TO_FINGERPRINT, 'r', encoding='utf-8') as f:
             fingerprint = json.load(f)
-            
+
         image_array = sitk.GetArrayFromImage(image_sitk)
 
         image_array = utils.ct_normalize(image_array,
@@ -155,6 +155,6 @@ if __name__ == "__main__":
         saved_count = extract_patches_for_image(path_to_image, path_to_label, images_out_dir, masks_out_dir)
         total_images += 1
         total_patches += saved_count
-        print(f"{fname}: {saved_count} patch(es) saved")
+        print(f"[{total_images}/{len(os.listdir(labels_dir))}] {fname}: {saved_count} patch(es) saved")
 
     print(f"Done. Processed {total_images} image(s), saved {total_patches} patch(es).")
