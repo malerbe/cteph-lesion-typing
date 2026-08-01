@@ -18,6 +18,7 @@ from sklearn.metrics import (
     balanced_accuracy_score,
     classification_report,
     confusion_matrix,
+    roc_auc_score,
 )
 
 
