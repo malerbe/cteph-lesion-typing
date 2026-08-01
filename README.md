@@ -15,10 +15,9 @@ python -m cteph-lesion-typing.main config.yaml train
 
 How to use:
 - Download RSPECT dataset and augmented-RSPECT annotations
-- Convert dataset to segmentation
-- Extract dataset fingerprint (if normalization is wanted)
-- Convert segmentation to patches (check if normalization is set as True if normalization is wanted !)
-- Preprocess dataset (normalization)
+- Convert dataset to segmentation (RSPECT_to_seg.py)
+- Extract dataset fingerprint (if normalization is wanted) (extract_fingerprint.py)
+- Convert segmentation to patches (check if normalization is set as True if normalization is wanted !) (lesion_patches_extraction.py)
 - Train 
 
 

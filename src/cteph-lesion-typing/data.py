@@ -1,4 +1,4 @@
-"""Dataset and dataloaders for 3D NIfTI crop classification (FP / acute / chronic)."""
+"""Dataset and dataloaders for 3D NIfTI crop classification."""
 
 # Standard imports
 import logging
@@ -28,7 +28,7 @@ CLASS_TO_IDX = {"acute": 0, "chronic": 1}
 ######################################
 # Datasets
 ######################################
-def PatchClassificatioNDataset(Dataset):
+class PatchClassificatioNDataset(Dataset):
     """
     Dataset for classifying 3D nifti crops
 
@@ -38,8 +38,9 @@ def PatchClassificatioNDataset(Dataset):
         self.file_paths = []
         self.labels = []
         self.study_uids = [] # patient-level identificatin for train.val spliiting without data-leakage
+        self.transform = None
 
-        for fname in sorted(os.listidr(patch_dir)):
+        for fname in sorted(os.listdir(patch_dir)):
             parts = fname.replace(".nii.gz", "").split("_")
             class_name = parts[-2]
             if class_name not in CLASS_TO_IDX:
