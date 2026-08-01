@@ -178,6 +178,8 @@ def _get_dataloaders_classification(data_config, use_cuda):
     folds = splits_json["folds"]
     n_splits = len(folds)
 
+    assert (1 <= data_config["val_fold"] <= n_splits), "val fold must be between 1 and n_splits"
+
     valid_filenames = folds[val_fold]
     train_filenames = []
     for fold in range(n_splits):
