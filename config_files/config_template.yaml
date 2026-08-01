@@ -6,10 +6,22 @@ data:
   transforms_name: standard
 
 model:
-  class: BasicCNN
+  class: Basic3DCNN
 
 loss:
   name: CrossEntropyLoss
 
 logging:
   logdir: "/data/lmalerba/logs"
+
+phase1:
+  nepochs: 5
+  optim:
+    algo: Adam
+    params:
+      lr: 0.01
+  scheduler:
+    algo: CosineAnnealingLR
+    params:
+      T_max: 5             # = nepochs for this phase
+      eta_min: 0.001
