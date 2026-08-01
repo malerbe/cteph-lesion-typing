@@ -179,8 +179,8 @@ def _train_patch_classification(config):
             # train metrics
             train_f1_parts = " | ".join(f"{k}: {v:.3f}" for k, v in train_results["f1_per_class"].items())
             logging.info(
-                "  Train loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | F1: %.3f | Prec: %.3f | Rec: %.3f"
-                % (train_results["loss"], 100.0 * train_results["accuracy"], 100.0 * train_results["balanced_accuracy"], train_results["f1_macro"], train_results["precision_macro"], train_results["recall_macro"])
+                "  Train loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | AUC: %.3f | F1: %.3f | Prec: %.3f | Rec: %.3f"
+                % (train_results["loss"], 100.0 * train_results["accuracy"], 100.0 * train_results["balanced_accuracy"], train_results["auc"], train_results["f1_macro"], train_results["precision_macro"], train_results["recall_macro"])
             )
             if train_results.get("seg_loss", 0.0) > 0.0:
                 seg_dice_str = f"{train_results['seg_dice']:.4f}" if train_results.get("seg_dice") is not None else "n/a"
@@ -194,9 +194,9 @@ def _train_patch_classification(config):
             # test metrics
             test_f1_parts = " | ".join(f"{k}: {v:.3f}" for k, v in test_results["f1_per_class"].items())
             logging.info(
-                "  Val   loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | F1: %.3f | Prec: %.3f | Rec: %.3f %s"
+                "  Val   loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | AUC: %.3f | F1: %.3f | Prec: %.3f | Rec: %.3f %s"
                 % (test_results["loss"], 100.0 * test_results["accuracy"], 100.0 * test_results["balanced_accuracy"],
-                    test_results["f1_macro"], test_results["precision_macro"], test_results["recall_macro"],
+                    test_results["auc"], test_results["f1_macro"], test_results["precision_macro"], test_results["recall_macro"],
                     "[>> BETTER <<]" if updated else "")
             )
             logging.info(f"  Val   F1/class: {test_f1_parts}")
@@ -221,6 +221,7 @@ def _train_patch_classification(config):
                 "val_loss": test_results["loss"],
                 "val_acc": test_results["accuracy"],
                 "val_bal_acc": test_results["balanced_accuracy"],
+                "val_auc": test_results["auc"],
                 "val_f1_macro": test_results["f1_macro"],
                 "val_precision_macro": test_results["precision_macro"],
                 "val_recall_macro": test_results["recall_macro"],
@@ -321,9 +322,9 @@ def _evaluate_patch_classification(config):
     logging.info("Evaluation results")
     logging.info(f"{'='*60}")
     logging.info(
-        "  Loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | F1: %.3f | Prec: %.3f | Rec: %.3f"
+        "  Loss: %.3f | Acc: %.2f%% | BalAcc: %.2f%% | AUC: %.3f | F1: %.3f | Prec: %.3f | Rec: %.3f"
         % (test_results["loss"], 100.0 * test_results["accuracy"], 100.0 * test_results["balanced_accuracy"],
-           test_results["f1_macro"], test_results["precision_macro"], test_results["recall_macro"])
+           test_results["auc"], test_results["f1_macro"], test_results["precision_macro"], test_results["recall_macro"])
     )
     logging.info(f"  F1/class: {test_f1_parts}")
     logging.info("\nClassification report:\n" + test_results["classification_report"])
