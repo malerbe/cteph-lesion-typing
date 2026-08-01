@@ -1,0 +1,29 @@
+data:
+  dataset_dir: '/data/lmalerba/lesions_patches_dataset_not_normalized'
+  task: classification
+  splits_file: '/data/lmalerba/lesions_patches_dataset_not_normalized/cv_splits.json'
+  val_fold: 5
+  transforms_name: standard
+  batch_size: 8
+  num_workers: 0
+  per_image_normalize: true # To be deactivated if global normalization was performed by lesion_patches_extraction.py
+
+model:
+  class: Basic3DCNN
+
+loss:
+  name: CrossEntropyLoss
+
+logging:
+  logdir: "/data/lmalerba/logs"
+
+phase1:
+  optim:
+    algo: Adam
+    params:
+      lr: 0.0001
+  scheduler:
+    algo: CosineAnnealingLR
+    params:
+      T_max: 5             # = nepochs for this phase
+      eta_min: 0.001

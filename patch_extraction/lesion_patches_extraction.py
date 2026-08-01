@@ -2,6 +2,8 @@
 Extract a fixed size patch centered on lesions centroid from a image/mask
 dataset in nifti format (as converted by RSPECT_dataset_conversion/RSPECT_to_seg.py).
 Save the image patch and its corresponding mask patch as separate nii.gz files
+
+author: Louca Malerba
 """
 
 # Imports

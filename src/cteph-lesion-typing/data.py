@@ -12,6 +12,7 @@ import numpy as np
 import json
 
 # Imports
+import time
 import torch
 from torch.utils.data import Dataset
 import SimpleITK as sitk
@@ -40,12 +41,13 @@ class PatchClassificationDataset(Dataset):
 
     /!\ DATA IS ASSUMED TO BE PRE-NORMALIZED IF NORMALIZATION IS NEEDED /!\
     """
-    def __init__(self, patch_dir, filenames, transform = None):
+    def __init__(self, patch_dir, filenames, transform = None, per_image_normalize = False):
         self.filenames = filenames
         self.file_paths = []
         self.labels = []
         self.study_uids = [] # patient-level identificatin for train.val spliiting without data-leakage
         self.transform = transform
+        self.per_image_normalize = per_image_normalize # HAS to be false if global normalization was performed in lesion_patches_extration.py !!
 
         for fname in sorted(self.filenames):
             parts = fname.replace(".nii.gz", "").split("_")
@@ -65,8 +67,12 @@ class PatchClassificationDataset(Dataset):
 
     def __getitem__(self, idx):
         image = sitk.GetArrayFromImage(sitk.ReadImage(self.file_paths[idx])).astype(np.float32)
-
         image_tensor = torch.from_numpy(image).unsqueeze(0)  # add channel dim
+
+        if self.per_image_normalize:
+            eps = 1e-8
+            image_tensor = (image_tensor - image_tensor.mean() / image_tensor.std().clamp(min=eps))
+
         label_tensor = torch.tensor(self.labels[idx], dtype=torch.long)
 
         if self.transform is not None:
@@ -108,6 +114,19 @@ def get_transforms(transforms_name: str, train: bool = True):
                     prob=0.3,
                     rotate_range=(0.15, 0.15, 0.15),  
                     scale_range=(0.05, 0.05, 0.05), 
+                    padding_mode="border",
+                ),
+                RandScaleIntensity(factors=0.15, prob=0.25),
+                RandAdjustContrast(prob=0.25, gamma=(0.8, 1.2)),
+            ]),
+            "standard_plus": Compose([
+                RandFlip(spatial_axis=0, prob=0.5),
+                RandFlip(spatial_axis=1, prob=0.5),
+                RandFlip(spatial_axis=2, prob=0.5),
+                RandAffine(
+                    prob=0.4,
+                    rotate_range=(0.26, 0.26, 0.26),   # more than standard
+                    scale_range=(0.1, 0.1, 0.1),    # more than standard
                     padding_mode="border",
                 ),
                 RandScaleIntensity(factors=0.15, prob=0.25),
@@ -168,6 +187,11 @@ def _get_dataloaders_classification(data_config, use_cuda):
     splits_file = data_config["splits_file"]
     val_fold = data_config["val_fold"]
     val_fold -= 1 # We want to have a natural numbering in the config file
+    per_image_normalize = data_config.get("per_image_normalize", False) # HAS to be false if global normalization was performed by lesion_patches_extraction.py !!
+
+    if per_image_normalize:
+        logging.warning("  /!\ Z-score normalization is activated, make sure this is a desired behaviour")
+        time.sleep(5)
 
     ######################################
     # Load splits
@@ -196,8 +220,8 @@ def _get_dataloaders_classification(data_config, use_cuda):
     ######################################
     # Datasets
     ######################################
-    train_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=train_filenames, transform=train_transform)
-    valid_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=valid_filenames) # no augmentation
+    train_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=train_filenames, transform=train_transform, per_image_normalize=per_image_normalize)
+    valid_dataset = PatchClassificationDataset(patch_dir=dataset_dir, filenames=valid_filenames, per_image_normalize=per_image_normalize) # no augmentation
 
     ######################################
     # Sampler

@@ -25,9 +25,9 @@ import sys
 # Configuration
 ##################
 PATH_TO_PATCH_DATASET = "/data/lmalerba/lesions_patches_dataset" # output of lesion_patches_extraction.py
-OUTPUT_FILE = "/data/lmalerba/lesions_patches_dataset/cv_splits.json"
+OUTPUT_FILE = "/data/lmalerba/lesions_patches_dataset/cv_splits_3.json"
 
-N_SPLITS = 5
+N_SPLITS = 3
 CLASS_TO_IDX = {"acute": 0, "chronic": 1}
 MINORITY_CLASS = "chronic"
 
