@@ -85,6 +85,18 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
     if NORMALIZE:
         with open(PATH_TO_FINGERPRINT, 'r', encoding='utf-8') as f:
             fingerprint = json.load(f)
+            
+        image_array = sitk.GetArrayFromImage(image_sitk)
+
+        image_array = utils.ct_normalize(image_array,
+                fingerprint["mean"],
+                fingerprint["std"],
+                fingerprint["percentile_00_5"], 
+                fingerprint["percentile_99_5"])
+
+        image_sitk_normalized = sitk.GetImageFromArray(image_array)
+        image_sitk_normalized.CopyInformation(image_sitk)
+        image_sitk = image_sitk_normalized
 
     saved_count = 0
     for lesion_id in lesion_ids:
@@ -98,19 +110,7 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
                 center_index[axis], spacing[axis], PATCH_SIZE_MM, volume_size[axis]
             )
 
-        if NORMALIZE:
-            image_array = sitk.GetArrayFromImage(image_sitk)
-            label_array = sitk.GetArrayFromImage(label_sitk)
-
-            image_array = utils.ct_normalize(image_array,
-                 fingerprint["mean"],
-                 fingerprint["std"],
-                 fingerprint["percentile_00_5"], 
-                 fingerprint["percentile_99_5"])
-
-            image_sitk_normalized = sitk.GetImageFromArray(image_array)
-            image_sitk_normalized.CopyInformation(image_sitk)
-            image_sitk = image_sitk_normalized
+        
 
         image_patch = sitk.RegionOfInterest(image_sitk, size=size, index=start)
         label_patch = sitk.RegionOfInterest(label_sitk, size=size, index=start)

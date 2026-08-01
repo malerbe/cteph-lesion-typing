@@ -71,8 +71,21 @@ def extract_fingerprint(dataset_directory, num_foreground_voxels_for_intensityst
     """
 
     # Read input folder and get a list of images/masks
-    img_names = os.listdir(os.path.join(INPUT_DATASET, 'images'))
-    masks_names = os.listdir(os.path.join(INPUT_DATASET, 'masks'))
+    images_dir = os.path.join(INPUT_DATASET, 'images')
+    masks_dir = os.path.join(INPUT_DATASET, 'masks')
+    img_names = []
+    masks_names = []
+
+    for fname in sorted(os.listdir(masks_dir)):
+        mask_path = os.path.join(masks_dir, fname)
+        img_path = os.path.join(images_dir, fname)
+
+        if not os.path.isfile(img_path):
+            print(f"Skipping {fname}: matching iamge not found")
+            continue
+
+        img_names.append(fname)
+        masks_names.append(fname)
 
     assert len(img_names) == len(masks_names), "Number of images and masks should be the same"
 
