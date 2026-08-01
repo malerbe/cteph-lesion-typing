@@ -42,6 +42,7 @@ def train(model, loader, f_loss, optimizer, device, class_names=None,
     all_targets = []
     all_seg_probs = []   # for Dice / IoU
     all_seg_masks = []   # for Dice / IoU
+    all_probs = []
     optimizer.zero_grad()
     pbar = tqdm.tqdm(loader, desc="  Train", leave=False)
     for step_idx, batch in enumerate(pbar):
@@ -77,6 +78,8 @@ def train(model, loader, f_loss, optimizer, device, class_names=None,
                 all_seg_masks.append(torch.zeros_like(seg_logits).cpu())
         else:
             cls_logits = outputs
+            probs = torch.softmax(cls_logits, dim=1)[:, 1]  # P(positive class), assumes binary
+            all_probs.append(probs.detach().cpu())
             loss = f_loss(cls_logits, targets)
             total_cls_loss += inputs.shape[0] * loss.item()
 
@@ -103,12 +106,14 @@ def train(model, loader, f_loss, optimizer, device, class_names=None,
         num_correct += (preds == targets).sum().item()
         all_preds.append(preds.detach().cpu())
         all_targets.append(targets.detach().cpu())
+        all_probs.append(probs.detach().cpu())  
 
         acc = num_correct / num_samples
         pbar.set_postfix(loss=f"{total_loss/num_samples:.3f}", acc=f"{100*acc:.1f}%")
 
     all_preds = torch.cat(all_preds).numpy()
     all_targets = torch.cat(all_targets).numpy()
+    all_probs = torch.cat(all_probs).numpy() 
 
     accuracy = num_correct / num_samples if num_samples > 0 else 0.0
     avg_loss = total_loss / num_samples if num_samples > 0 else 0.0
@@ -122,6 +127,11 @@ def train(model, loader, f_loss, optimizer, device, class_names=None,
     rec_macro = recall_score(all_targets, all_preds, average="macro", zero_division=0)
     bal_acc = balanced_accuracy_score(all_targets, all_preds)
     f1_per = f1_score(all_targets, all_preds, average=None, labels=labels, zero_division=0)
+    try:                                                    
+        auc = roc_auc_score(all_targets, all_probs)
+    except ValueError:
+        # e.g. only one class present in this epoch's predictions/targets
+        auc = float("nan")
 
     seg_metrics = _seg_dice_iou(all_seg_probs, all_seg_masks) if all_seg_probs else {"dice": None, "iou": None}
 
@@ -133,6 +143,7 @@ def train(model, loader, f_loss, optimizer, device, class_names=None,
         "seg_iou":  seg_metrics["iou"],
         "accuracy": accuracy,
         "balanced_accuracy": bal_acc,
+        "auc": auc,
         "f1_macro": f1_macro,
         "precision_macro": prec_macro,
         "recall_macro": rec_macro,
@@ -159,6 +170,7 @@ def test(model, loader, f_loss, device, class_names=None):
     all_targets = []
     all_seg_probs = []   # for Dice / IoU
     all_seg_masks = []   # for Dice / IoU
+    all_probs = []
 
     pbar = tqdm.tqdm(loader, desc="  Valid", leave=False)
     with torch.no_grad():
@@ -201,9 +213,11 @@ def test(model, loader, f_loss, device, class_names=None):
             num_samples += inputs.shape[0]
 
             preds = cls_logits.argmax(dim=1)
+            probs = torch.softmax(cls_logits, dim=1)[:, 1]
             num_correct += (preds == targets).sum().item()
             all_preds.append(preds.cpu())
             all_targets.append(targets.cpu())
+            all_probs.append(probs.cpu())
 
             acc = num_correct / num_samples
             pbar.set_postfix(loss=f"{total_loss/num_samples:.3f}", acc=f"{100*acc:.1f}%")
@@ -212,6 +226,7 @@ def test(model, loader, f_loss, device, class_names=None):
 
     all_preds = torch.cat(all_preds).numpy()
     all_targets = torch.cat(all_targets).numpy()
+    all_probs = torch.cat(all_probs).numpy()
 
     accuracy = num_correct / num_samples if num_samples > 0 else 0.0
     avg_loss = total_loss / num_samples if num_samples > 0 else 0.0
@@ -231,6 +246,10 @@ def test(model, loader, f_loss, device, class_names=None):
         zero_division=0,
     )
     cm = confusion_matrix(all_targets, all_preds, labels=labels)
+    try:                                          
+        auc = roc_auc_score(all_targets, all_probs)
+    except ValueError:
+        auc = float("nan")
 
     seg_metrics = _seg_dice_iou(all_seg_probs, all_seg_masks) if all_seg_probs else {"dice": None, "iou": None}
 
@@ -242,6 +261,7 @@ def test(model, loader, f_loss, device, class_names=None):
         "seg_iou":  seg_metrics["iou"],
         "accuracy": accuracy,
         "balanced_accuracy": bal_acc,
+        "auc": auc,
         "f1_macro": f1_macro,
         "precision_macro": prec_macro,
         "recall_macro": rec_macro,
