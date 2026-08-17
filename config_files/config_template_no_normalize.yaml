@@ -3,13 +3,16 @@ data:
   task: classification
   splits_file: '/data/lmalerba/lesions_patches_dataset_not_normalized/cv_splits.json'
   val_fold: 5
-  transforms_name: standard
+  transforms_name: none
   batch_size: 8
   num_workers: 0
   per_image_normalize: true # To be deactivated if global normalization was performed by lesion_patches_extraction.py
 
 model:
-  class: Basic3DCNN
+  class: MonaiResNet3D
+  depth: 50       # 10, 18, 34 ou 50 (défaut: 18)
+  pretrained: false
+  model_path: '/data/lmalerba/logs/Deep3DCNN_2/best_model.pt' 
 
 loss:
   name: CrossEntropyLoss
@@ -21,9 +24,9 @@ phase1:
   optim:
     algo: Adam
     params:
-      lr: 0.0001
+      lr: 0.001
   scheduler:
     algo: CosineAnnealingLR
     params:
-      T_max: 5             # = nepochs for this phase
-      eta_min: 0.001
+      T_max: 20             # = nepochs for this phase
+      eta_min: 0.00001

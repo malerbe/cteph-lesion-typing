@@ -25,3 +25,5 @@ How to use:
 
 TO DO:
 - Make a preprocessing script based on the nnUNet one and check if it works properly
+- Check what normalization is used on VoCo and replicate it. 
+- Make heart_patches_extraction.py script that will use TotalSegmentator's output and get a bbox from it + apply the right Normalization for VoCo. 

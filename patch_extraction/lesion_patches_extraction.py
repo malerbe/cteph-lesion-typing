@@ -24,16 +24,16 @@ import utils
 PATH_TO_INPUT_DATASET = "/data/lmalerba/augmented_RSPECT"
 OUTPUT_PATH = "/data/lmalerba/lesions_patches_dataset_not_normalized"
 
-NORMALIZE = False # If set as True, CT normalization will be done and generated dataset will be normalized
+NORMALIZE = "nnUNet" # If set as nnUNet, CT normalization will be done using foreground as in nnUNet and generated dataset will be normalized
 PATH_TO_FINGERPRINT = "/data/lmalerba/augmented_RSPECT/dataset_fingerprint.json"
 
-if NORMALIZE == True and PATH_TO_FINGERPRINT == None:
-    raise ValueError("For normalization, dataset fingerprint is needed")
+if NORMALIZE == "nnUNet" and PATH_TO_FINGERPRINT == None:
+    raise ValueError("For nnUNet normalization, dataset fingerprint is needed")
 else:
     logging.warning("Normalization is deactivated ! Make sure it really is what you want !")
 
 
-PATCH_SIZE_MM = 50.0 # patch size in mm
+PATCH_SIZE_MM = 80.0 # patch size in mm
 TARGET_SPACING = (0.8, 0.8, 0.8)
 CLASS_LABELS = {1: "acute", 2: "chronic"}
 
@@ -87,7 +87,7 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
 
     # read dataset fingerprint if normalization is needed
     fingerprint = None
-    if NORMALIZE:
+    if NORMALIZE == "nnUNet":
         with open(PATH_TO_FINGERPRINT, 'r', encoding='utf-8') as f:
             fingerprint = json.load(f)
 
@@ -128,41 +128,6 @@ def extract_patches_for_image(path_to_image, path_to_label, images_out_dir, mask
         saved_count += 1
 
     return saved_count
-
-if __name__ == "__main__":
-    images_out_dir = os.path.join(OUTPUT_PATH, "images")
-    masks_out_dir = os.path.join(OUTPUT_PATH, "masks")
-
-    os.makedirs(images_out_dir, exist_ok=True)
-    os.makedirs(masks_out_dir, exist_ok=True)
-
-    assert not os.listdir(os.path.join(images_out_dir)), "Output folders are not empty. Please empty them before running this script."
-    assert not os.listdir(os.path.join(masks_out_dir)), "Output folders are not empty. Please empty them before running this script."
-
-    total_patches = 0
-    total_images = 0
-    
-    labels_dir = os.path.join(PATH_TO_INPUT_DATASET, "masks")
-    images_dir = os.path.join(PATH_TO_INPUT_DATASET, "images")
-
-    for fname in sorted(os.listdir(labels_dir)):
-        if not fname.endswith(".nii.gz"):
-            continue
-
-        path_to_label = os.path.join(labels_dir, fname)
-        path_to_image = os.path.join(images_dir, fname)
-
-        # print(path_to_image)
-        if not os.path.isfile(path_to_image):
-            print(f"Skipping {fname}: matching image not found")
-            continue
-
-        saved_count = extract_patches_for_image(path_to_image, path_to_label, images_out_dir, masks_out_dir)
-        total_images += 1
-        total_patches += saved_count
-        print(f"[{total_images}/{len(os.listdir(labels_dir))}] {fname}: {saved_count} patch(es) saved")
-
-    print(f"Done. Processed {total_images} image(s), saved {total_patches} patch(es).")
 
 if __name__ == "__main__":
     images_out_dir = os.path.join(OUTPUT_PATH, "images")
