@@ -38,3 +38,5 @@ config.yaml
 
 # Slurm
 logslurms
+
+*.nii.gz

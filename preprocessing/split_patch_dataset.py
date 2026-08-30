@@ -6,7 +6,7 @@ All patches from the same suid (patient) are always assigned to the same fold, s
 ever appears in both train and validation for a given fold (no data-leakage)
 
 This script is original because it is a deterministic splitting algorithm. The goal is to balance
-the amount of patches from the minority class (here it is chroci):
+the amount of patches from the minority class (here it is chronic):
 
 Patients are processed from the heaviest (with more labels from minority class) to lightest.
 
